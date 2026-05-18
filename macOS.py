@@ -68,8 +68,11 @@ KEY_DOWN = 125
 ALPHA_STEP = 15
 ALPHA_MIN = 0
 ALPHA_MAX = 255
-REFRESH_INTERVAL = 1.0 / 60.0
+REFRESH_INTERVAL = 1.0 / 120.0
 CORNER_RADIUS = 12.0
+SHADOW_PADDING = 36.0
+SHADOW_PADDING_TOP = 18.0
+SHADOW_PADDING_BOTTOM = 52.0
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
@@ -113,7 +116,13 @@ class OpacityController:
         if not frame:
             self._hide_overlay()
             return
-        self._ensure_overlay(frame, alpha)
+        expanded = self._expand_frame(
+            frame,
+            SHADOW_PADDING,
+            SHADOW_PADDING_TOP,
+            SHADOW_PADDING_BOTTOM,
+        )
+        self._ensure_overlay(expanded, alpha)
 
     def _ensure_overlay(self, frame, alpha_255):
         x, y, w, h = frame
@@ -152,6 +161,15 @@ class OpacityController:
     def _hide_overlay(self):
         if self.overlay_window:
             self.overlay_window.orderOut_(None)
+
+    def _expand_frame(self, frame, padding, padding_top, padding_bottom):
+        x, y, w, h = frame
+        return (
+            x - padding,
+            y - padding_bottom,
+            w + padding * 2,
+            h + padding_top + padding_bottom,
+        )
 
     def _frontmost_pid(self):
         app = NSWorkspace.sharedWorkspace().frontmostApplication()
