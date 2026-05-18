@@ -1,2 +1,2 @@
 pyobjc>=10.0
-
+# Provides AppKit, Quartz, and ApplicationServices bindings

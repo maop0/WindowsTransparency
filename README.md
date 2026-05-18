@@ -34,7 +34,7 @@ python Windows.py
 
 ### Run
 ```bash
-python3 macOS.py
+python3 macOS_overlay.py
 ```
 
 ### Notes
@@ -42,3 +42,27 @@ python3 macOS.py
 - Requires Accessibility permissions to read the focused window bounds.
 - Opacity range is 0-255 (0 hides the overlay).
 - Set `OPACITY_DEBUG=1` to print hotkey and overlay debug logs.
+
+## macOS (native API attempt)
+### Features
+- Command+Option+Control+Up increases opacity
+- Command+Option+Control+Down decreases opacity
+- Works on the currently focused window
+
+### Requirements
+- macOS 12+
+- Python 3.8+
+- `pyobjc` installed
+- Accessibility + Input Monitoring permissions enabled for Terminal/IDE
+
+### Run
+```bash
+python3 macOS_api.py
+```
+
+### Notes
+- Uses a private CGS API to try changing the real window alpha; it may fail on newer macOS versions.
+- Requires Accessibility permissions to read the focused window id.
+- Opacity range is 0-255 (0 is fully transparent if the API allows it).
+- Set `OPACITY_DEBUG=1` to print debug logs.
+
