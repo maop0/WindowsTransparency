@@ -1,4 +1,5 @@
 import os
+import objc
 
 from Quartz import (
     CGEventGetFlags,
@@ -48,6 +49,8 @@ from AppKit import (
     NSWindowCollectionBehaviorFullScreenAuxiliary,
     NSColor,
     NSScreen,
+    NSTimer,
+    NSObject,
 )
 
 from CoreFoundation import (
@@ -64,6 +67,7 @@ KEY_DOWN = 125
 ALPHA_STEP = 15
 ALPHA_MIN = 0
 ALPHA_MAX = 255
+REFRESH_INTERVAL = 1.0 / 60.0
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
@@ -86,15 +90,27 @@ class OpacityController:
         current = self.alpha_by_pid.get(pid, ALPHA_MIN)
         new_alpha = max(ALPHA_MIN, min(ALPHA_MAX, current + delta))
         self.alpha_by_pid[pid] = new_alpha
-        if new_alpha == 0:
-            self._hide_overlay()
-        else:
-            self._ensure_overlay(frame, new_alpha)
+        self.refresh_overlay()
         if DEBUG:
             x, y, w, h = frame
             print(
                 f"[debug] Overlay frame=({x:.1f},{y:.1f},{w:.1f},{h:.1f}) alpha={new_alpha}"
             )
+
+    def refresh_overlay(self):
+        pid = self._frontmost_pid()
+        if pid is None:
+            self._hide_overlay()
+            return
+        alpha = self.alpha_by_pid.get(pid, ALPHA_MIN)
+        if alpha <= 0:
+            self._hide_overlay()
+            return
+        frame = self._frontmost_window_frame(pid)
+        if not frame:
+            self._hide_overlay()
+            return
+        self._ensure_overlay(frame, alpha)
 
     def _ensure_overlay(self, frame, alpha_255):
         x, y, w, h = frame
@@ -176,6 +192,18 @@ class OpacityController:
         return None
 
 
+class _OverlayRefresher(NSObject):
+    def initWithController_(self, controller):
+        self = objc.super(_OverlayRefresher, self).init()
+        if self is None:
+            return None
+        self.controller = controller
+        return self
+
+    def tick_(self, _timer):
+        self.controller.refresh_overlay()
+
+
 _controller = None
 
 
@@ -225,6 +253,14 @@ def main():
     NSApplication.sharedApplication()
     NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
     _controller = OpacityController()
+    refresher = _OverlayRefresher.alloc().initWithController_(_controller)
+    NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        REFRESH_INTERVAL,
+        refresher,
+        "tick:",
+        None,
+        True,
+    )
     _create_event_tap()
     CFRunLoopRun()
 
