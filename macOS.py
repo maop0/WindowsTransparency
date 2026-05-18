@@ -62,8 +62,8 @@ KEY_UP = 126
 KEY_DOWN = 125
 
 ALPHA_STEP = 15
-ALPHA_MIN = 50
-ALPHA_MAX = 200
+ALPHA_MIN = 0
+ALPHA_MAX = 255
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
@@ -86,7 +86,10 @@ class OpacityController:
         current = self.alpha_by_pid.get(pid, ALPHA_MIN)
         new_alpha = max(ALPHA_MIN, min(ALPHA_MAX, current + delta))
         self.alpha_by_pid[pid] = new_alpha
-        self._ensure_overlay(frame, new_alpha)
+        if new_alpha == 0:
+            self._hide_overlay()
+        else:
+            self._ensure_overlay(frame, new_alpha)
         if DEBUG:
             x, y, w, h = frame
             print(
@@ -115,9 +118,13 @@ class OpacityController:
             self.overlay_window = window
         self.overlay_window.setFrame_display_(((x, y), (w, h)), True)
         alpha_float = float(alpha_255) / 255.0
-        color = NSColor.blackColor().colorWithAlphaComponent_(alpha_float)
+        color = NSColor.whiteColor().colorWithAlphaComponent_(alpha_float)
         self.overlay_window.setBackgroundColor_(color)
         self.overlay_window.orderFrontRegardless()
+
+    def _hide_overlay(self):
+        if self.overlay_window:
+            self.overlay_window.orderOut_(None)
 
     def _frontmost_pid(self):
         app = NSWorkspace.sharedWorkspace().frontmostApplication()

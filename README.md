@@ -38,7 +38,7 @@ python3 macOS.py
 ```
 
 ### Notes
-- Uses an overlay window to simulate dimming the active window (does not change the app's real opacity).
+- Uses an overlay window to simulate brightening the active window (does not change the app's real opacity).
 - Requires Accessibility permissions to read the focused window bounds.
-- Opacity range is 50-200 to avoid making the overlay fully black.
+- Opacity range is 0-255 (0 hides the overlay).
 - Set `OPACITY_DEBUG=1` to print hotkey and overlay debug logs.
