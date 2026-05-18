@@ -1,5 +1,3 @@
-import ctypes
-from ctypes import util
 import os
 
 from Quartz import (
@@ -20,9 +18,38 @@ from Quartz import (
     kCGWindowListOptionOnScreenOnly,
     kCGWindowListExcludeDesktopElements,
     kCGNullWindowID,
+    CGPoint,
+    CGSize,
 )
 
-from AppKit import NSWorkspace
+from ApplicationServices import (
+    AXIsProcessTrusted,
+    AXUIElementCreateApplication,
+    AXUIElementCopyAttributeValue,
+    AXValueGetType,
+    AXValueGetValue,
+    kAXFocusedWindowAttribute,
+    kAXPositionAttribute,
+    kAXSizeAttribute,
+    kAXValueCGPointType,
+    kAXValueCGSizeType,
+)
+
+from AppKit import (
+    NSWorkspace,
+    NSApplication,
+    NSApplicationActivationPolicyAccessory,
+    NSApp,
+    NSWindow,
+    NSWindowStyleMaskBorderless,
+    NSBackingStoreBuffered,
+    NSStatusWindowLevel,
+    NSWindowCollectionBehaviorCanJoinAllSpaces,
+    NSWindowCollectionBehaviorFullScreenAuxiliary,
+    NSColor,
+    NSScreen,
+)
+
 from CoreFoundation import (
     CFMachPortCreateRunLoopSource,
     CFRunLoopAddSource,
@@ -36,70 +63,14 @@ KEY_DOWN = 125
 
 ALPHA_STEP = 15
 ALPHA_MIN = 50
-ALPHA_MAX = 255
+ALPHA_MAX = 200
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
-class CGSApi:
-    def __init__(self):
-        self.lib = self._load_library()
-        self.connection = self._get_connection_id()
-        self._get_connection_id_for_process = self._bind_get_connection_id_for_process()
-        self._set_window_alpha = self._bind_set_window_alpha()
-
-    def _load_library(self):
-        skylight = "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight"
-        try:
-            return ctypes.cdll.LoadLibrary(skylight)
-        except OSError:
-            app_services = util.find_library("ApplicationServices")
-            if not app_services:
-                raise RuntimeError("Failed to locate SkyLight or ApplicationServices")
-            return ctypes.cdll.LoadLibrary(app_services)
-
-    def _get_connection_id(self):
-        func = getattr(self.lib, "CGSMainConnectionID", None)
-        if not func:
-            raise RuntimeError("CGSMainConnectionID not available")
-        func.restype = ctypes.c_uint32
-        return func()
-
-    def _bind_set_window_alpha(self):
-        func = getattr(self.lib, "CGSSetWindowAlpha", None)
-        if not func:
-            raise RuntimeError("CGSSetWindowAlpha not available")
-        func.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_float]
-        func.restype = ctypes.c_int
-        return func
-
-    def _bind_get_connection_id_for_process(self):
-        func = getattr(self.lib, "CGSGetConnectionIDForProcess", None)
-        if not func:
-            return None
-        func.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_uint32)]
-        func.restype = ctypes.c_int
-        return func
-
-    def get_connection_id_for_pid(self, pid):
-        if not self._get_connection_id_for_process:
-            return self.connection
-        conn_id = ctypes.c_uint32(0)
-        result = self._get_connection_id_for_process(pid, ctypes.byref(conn_id))
-        if result != 0 or conn_id.value == 0:
-            if DEBUG:
-                print(f"[debug] Failed to resolve connection for pid={pid}, using main connection")
-            return self.connection
-        return conn_id.value
-
-    def set_window_alpha(self, connection_id, window_id, alpha_float):
-        result = self._set_window_alpha(connection_id, window_id, alpha_float)
-        return result == 0
-
-
 class OpacityController:
-    def __init__(self, cgs_api):
-        self.cgs_api = cgs_api
-        self.alpha_by_window = {}
+    def __init__(self):
+        self.alpha_by_pid = {}
+        self.overlay_window = None
 
     def adjust_frontmost(self, delta):
         pid = self._frontmost_pid()
@@ -107,24 +78,46 @@ class OpacityController:
             if DEBUG:
                 print("[debug] No frontmost PID")
             return
-        window_id = self._frontmost_window_id(pid)
-        if window_id is None:
+        frame = self._frontmost_window_frame(pid)
+        if not frame:
             if DEBUG:
-                print(f"[debug] No frontmost window ID for pid={pid}")
+                print(f"[debug] No frontmost window frame for pid={pid}")
             return
-        connection_id = self.cgs_api.get_connection_id_for_pid(pid)
-        current = self.alpha_by_window.get(window_id, ALPHA_MAX)
+        current = self.alpha_by_pid.get(pid, ALPHA_MIN)
         new_alpha = max(ALPHA_MIN, min(ALPHA_MAX, current + delta))
-        if self._set_window_alpha(connection_id, window_id, new_alpha):
-            self.alpha_by_window[window_id] = new_alpha
-            if DEBUG:
-                print(f"[debug] Set window {window_id} alpha={new_alpha}")
-        elif DEBUG:
-            print(f"[debug] Failed to set alpha for window {window_id}")
+        self.alpha_by_pid[pid] = new_alpha
+        self._ensure_overlay(frame, new_alpha)
+        if DEBUG:
+            x, y, w, h = frame
+            print(
+                f"[debug] Overlay frame=({x:.1f},{y:.1f},{w:.1f},{h:.1f}) alpha={new_alpha}"
+            )
 
-    def _set_window_alpha(self, connection_id, window_id, alpha_255):
+    def _ensure_overlay(self, frame, alpha_255):
+        x, y, w, h = frame
+        if not self.overlay_window:
+            rect = ((x, y), (w, h))
+            window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+                rect,
+                NSWindowStyleMaskBorderless,
+                NSBackingStoreBuffered,
+                False,
+            )
+            window.setOpaque_(False)
+            window.setHasShadow_(False)
+            window.setIgnoresMouseEvents_(True)
+            window.setLevel_(NSStatusWindowLevel)
+            behavior = (
+                NSWindowCollectionBehaviorCanJoinAllSpaces
+                | NSWindowCollectionBehaviorFullScreenAuxiliary
+            )
+            window.setCollectionBehavior_(behavior)
+            self.overlay_window = window
+        self.overlay_window.setFrame_display_(((x, y), (w, h)), True)
         alpha_float = float(alpha_255) / 255.0
-        return self.cgs_api.set_window_alpha(connection_id, window_id, alpha_float)
+        color = NSColor.blackColor().colorWithAlphaComponent_(alpha_float)
+        self.overlay_window.setBackgroundColor_(color)
+        self.overlay_window.orderFrontRegardless()
 
     def _frontmost_pid(self):
         app = NSWorkspace.sharedWorkspace().frontmostApplication()
@@ -132,17 +125,47 @@ class OpacityController:
             return None
         return app.processIdentifier()
 
-    def _frontmost_window_id(self, pid):
+    def _frontmost_window_frame(self, pid):
+        app_elem = AXUIElementCreateApplication(pid)
+        if not app_elem:
+            return None
+        window_ref, err = AXUIElementCopyAttributeValue(app_elem, kAXFocusedWindowAttribute, None)
+        if err != 0 or not window_ref:
+            return self._fallback_window_frame(pid)
+        pos_ref, pos_err = AXUIElementCopyAttributeValue(window_ref, kAXPositionAttribute, None)
+        size_ref, size_err = AXUIElementCopyAttributeValue(window_ref, kAXSizeAttribute, None)
+        if pos_err != 0 or size_err != 0:
+            return self._fallback_window_frame(pid)
+        if AXValueGetType(pos_ref) != kAXValueCGPointType:
+            return self._fallback_window_frame(pid)
+        if AXValueGetType(size_ref) != kAXValueCGSizeType:
+            return self._fallback_window_frame(pid)
+        pos = CGPoint()
+        size = CGSize()
+        AXValueGetValue(pos_ref, kAXValueCGPointType, pos)
+        AXValueGetValue(size_ref, kAXValueCGSizeType, size)
+        return (pos.x, pos.y, size.width, size.height)
+
+    def _fallback_window_frame(self, pid):
         options = kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements
         window_list = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
         for info in window_list:
-            owner_pid = info.get("kCGWindowOwnerPID")
-            layer = info.get("kCGWindowLayer")
-            if owner_pid == pid and layer == 0:
-                window_id = info.get("kCGWindowNumber")
-                if DEBUG:
-                    print(f"[debug] Frontmost window id={window_id} pid={pid}")
-                return window_id
+            if info.get("kCGWindowOwnerPID") != pid:
+                continue
+            if info.get("kCGWindowLayer") != 0:
+                continue
+            bounds = info.get("kCGWindowBounds")
+            if not bounds:
+                continue
+            x = bounds.get("X", 0.0)
+            y = bounds.get("Y", 0.0)
+            w = bounds.get("Width", 0.0)
+            h = bounds.get("Height", 0.0)
+            screen = NSScreen.mainScreen()
+            if screen:
+                screen_height = screen.frame().size.height
+                y = screen_height - y - h
+            return (x, y, w, h)
         return None
 
 
@@ -190,8 +213,11 @@ def _create_event_tap():
 
 def main():
     global _controller
-    cgs_api = CGSApi()
-    _controller = OpacityController(cgs_api)
+    if not AXIsProcessTrusted():
+        raise RuntimeError("Accessibility permission is required to read window info")
+    NSApplication.sharedApplication()
+    NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+    _controller = OpacityController()
     _create_event_tap()
     CFRunLoopRun()
 
