@@ -35,6 +35,13 @@ from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyAccessory,
     NSApp,
+    NSWindow,
+    NSWindowStyleMaskTitled,
+    NSWindowStyleMaskClosable,
+    NSWindowStyleMaskResizable,
+    NSBackingStoreBuffered,
+    NSColor,
+    NSRunningApplication,
 )
 
 from CoreFoundation import (
@@ -51,6 +58,7 @@ KEY_DOWN = 125
 ALPHA_STEP = 15
 ALPHA_MIN = 0
 ALPHA_MAX = 255
+SELF_TEST_MIN_ALPHA = 40
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
@@ -61,13 +69,22 @@ class _CGSApi:
         self._set_alpha_fn = None
         self._load()
 
-    def _load(self):
+    def _try_load(self, path):
         try:
-            self._lib = ctypes.CDLL(
+            lib = ctypes.CDLL(path)
+        except OSError:
+            return None
+        return lib
+
+    def _load(self):
+        self._lib = self._try_load(
+            "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight"
+        )
+        if self._lib is None:
+            self._lib = self._try_load(
                 "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
             )
-        except OSError:
-            self._lib = None
+        if self._lib is None:
             return
         try:
             self._conn_fn = self._lib.CGSMainConnectionID
@@ -86,33 +103,39 @@ class _CGSApi:
 
     def set_window_alpha(self, window_id, alpha_float):
         if not self.available():
-            return False
+            return False, None
         conn = self._conn_fn()
         status = self._set_alpha_fn(conn, window_id, float(alpha_float))
-        return status == 0
+        return status == 0, int(status)
 
 
 class OpacityController:
     def __init__(self):
         self.alpha_by_window = {}
         self.cgs_api = _CGSApi()
+        self.override_window_id = None
 
     def adjust_frontmost(self, delta):
-        window_id = self._frontmost_window_id()
+        window_id = self.override_window_id or self._frontmost_window_id()
         if window_id is None:
             if DEBUG:
                 print("[debug] No focused window id")
             return
-        current = self.alpha_by_window.get(window_id, ALPHA_MIN)
-        new_alpha = max(ALPHA_MIN, min(ALPHA_MAX, current + delta))
+        min_alpha = SELF_TEST_MIN_ALPHA if self.override_window_id else ALPHA_MIN
+        current = self.alpha_by_window.get(window_id, min_alpha)
+        new_alpha = max(min_alpha, min(ALPHA_MAX, current + delta))
         self.alpha_by_window[window_id] = new_alpha
-        if not self._apply_alpha(window_id, new_alpha):
-            if DEBUG:
-                print("[debug] Failed to set window alpha (API unavailable?)")
+        ok, status = self._apply_alpha(window_id, new_alpha)
+        if DEBUG:
+            print(
+                f"[debug] Set alpha window_id={window_id} alpha={new_alpha} ok={ok} status={status}"
+            )
+        if not ok and DEBUG:
+            print("[debug] Failed to set window alpha (API unavailable or blocked)")
 
     def _apply_alpha(self, window_id, alpha_255):
         if not self.cgs_api.available():
-            return False
+            return False, None
         alpha_float = float(alpha_255) / 255.0
         return self.cgs_api.set_window_alpha(window_id, alpha_float)
 
@@ -140,7 +163,10 @@ class OpacityController:
         if win_err != 0 or window_id_ref is None:
             return self._fallback_window_id(pid)
         try:
-            return int(window_id_ref)
+            window_id = int(window_id_ref)
+            if DEBUG:
+                print(f"[debug] Focused window id={window_id}")
+            return window_id
         except (TypeError, ValueError):
             return self._fallback_window_id(pid)
 
@@ -159,11 +185,17 @@ class OpacityController:
 
 
 _controller = None
+_event_tap = None
+_self_test_window = None
 
 
 def _event_callback(proxy, event_type, event, refcon):
     if event_type != kCGEventKeyDown:
         return event
+    keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode)
+    if DEBUG:
+        flags = CGEventGetFlags(event)
+        print(f"[debug] KeyDown keycode={keycode} flags=0x{int(flags):x}")
     flags = CGEventGetFlags(event)
     if not (
         flags & kCGEventFlagMaskCommand
@@ -171,7 +203,8 @@ def _event_callback(proxy, event_type, event, refcon):
         and flags & kCGEventFlagMaskAlternate
     ):
         return event
-    keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode)
+    if DEBUG:
+        print("[debug] Hotkey matched")
     if keycode == KEY_UP:
         _controller.adjust_frontmost(ALPHA_STEP)
     elif keycode == KEY_DOWN:
@@ -180,6 +213,7 @@ def _event_callback(proxy, event_type, event, refcon):
 
 
 def _create_event_tap():
+    global _event_tap
     mask = CGEventMaskBit(kCGEventKeyDown)
     tap = CGEventTapCreate(
         kCGSessionEventTap,
@@ -191,21 +225,58 @@ def _create_event_tap():
     )
     if not tap:
         raise RuntimeError("Failed to create event tap (check Input Monitoring)")
+    if DEBUG:
+        print("[debug] Event tap created")
     source = CFMachPortCreateRunLoopSource(None, tap, 0)
     CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes)
     CGEventTapEnable(tap, True)
+    _event_tap = tap
+
+
+def _create_self_test_window():
+    rect = ((200, 200), (480, 320))
+    style = (
+        NSWindowStyleMaskTitled
+        | NSWindowStyleMaskClosable
+        | NSWindowStyleMaskResizable
+    )
+    window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        rect,
+        style,
+        NSBackingStoreBuffered,
+        False,
+    )
+    window.setTitle_("Opacity Self-Test")
+    window.setBackgroundColor_(NSColor.windowBackgroundColor())
+    window.center()
+    window.makeKeyAndOrderFront_(None)
+    return window
 
 
 def main():
     global _controller
+    global _self_test_window
     if not AXIsProcessTrusted():
         raise RuntimeError("Accessibility permission is required to read window info")
     NSApplication.sharedApplication()
     NSApp.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
     _controller = OpacityController()
-    if DEBUG and not _controller.cgs_api.available():
-        print("[debug] CGS window alpha API not available")
+    if DEBUG:
+        print(f"[debug] CGS API available={_controller.cgs_api.available()}")
+    if os.getenv("OPACITY_SELF_TEST", "0") == "1":
+        NSRunningApplication.currentApplication().activateWithOptions_(1 << 1)
+        _self_test_window = _create_self_test_window()
+        try:
+            _controller.override_window_id = int(_self_test_window.windowNumber())
+        except Exception:
+            _controller.override_window_id = None
+        if DEBUG:
+            print(
+                f"[debug] Self-test window id={_controller.override_window_id}"
+            )
     _create_event_tap()
+    if DEBUG:
+        print("[debug] Run loop started")
     CFRunLoopRun()
 
 
