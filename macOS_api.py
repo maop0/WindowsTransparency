@@ -1,8 +1,6 @@
 import ctypes
 import os
 
-import objc
-
 from Quartz import (
     CGEventGetFlags,
     CGEventGetIntegerValueField,
@@ -112,26 +110,52 @@ class _CGSApi:
 class OpacityController:
     def __init__(self):
         self.alpha_by_window = {}
+        self.alpha_by_pid = {}
         self.cgs_api = _CGSApi()
         self.override_window_id = None
 
     def adjust_frontmost(self, delta):
-        window_id = self.override_window_id or self._frontmost_window_id()
-        if window_id is None:
+        if self.override_window_id is not None:
+            window_id = self.override_window_id
+            min_alpha = SELF_TEST_MIN_ALPHA
+            current = self.alpha_by_window.get(window_id, min_alpha)
+            new_alpha = max(min_alpha, min(ALPHA_MAX, current + delta))
+            self.alpha_by_window[window_id] = new_alpha
+            ok, status = self._apply_alpha(window_id, new_alpha)
             if DEBUG:
-                print("[debug] No focused window id")
-            return
-        min_alpha = SELF_TEST_MIN_ALPHA if self.override_window_id else ALPHA_MIN
-        current = self.alpha_by_window.get(window_id, min_alpha)
-        new_alpha = max(min_alpha, min(ALPHA_MAX, current + delta))
-        self.alpha_by_window[window_id] = new_alpha
-        ok, status = self._apply_alpha(window_id, new_alpha)
-        if DEBUG:
-            print(
-                f"[debug] Set alpha window_id={window_id} alpha={new_alpha} ok={ok} status={status}"
-            )
-        if not ok and DEBUG:
+                print(
+                    f"[debug] Set alpha window_id={window_id} alpha={new_alpha} ok={ok} status={status}"
+                )
+            if not ok and DEBUG:
+                print("[debug] Failed to set window alpha (API unavailable or blocked)")
+            return ok
+        pid = self._frontmost_pid()
+        if pid is None:
+            if DEBUG:
+                print("[debug] No frontmost PID")
+            return None
+        window_ids = self._window_ids_for_pid(pid)
+        if not window_ids:
+            window_id = self._frontmost_window_id()
+            if window_id is None:
+                if DEBUG:
+                    print("[debug] No focused window id")
+                return None
+            window_ids = [window_id]
+        current = self.alpha_by_pid.get(pid, ALPHA_MIN)
+        new_alpha = max(ALPHA_MIN, min(ALPHA_MAX, current + delta))
+        self.alpha_by_pid[pid] = new_alpha
+        ok_any = False
+        for window_id in window_ids:
+            ok, status = self._apply_alpha(window_id, new_alpha)
+            ok_any = ok_any or bool(ok)
+            if DEBUG:
+                print(
+                    f"[debug] Set alpha window_id={window_id} alpha={new_alpha} ok={ok} status={status}"
+                )
+        if not ok_any and DEBUG:
             print("[debug] Failed to set window alpha (API unavailable or blocked)")
+        return ok_any
 
     def _apply_alpha(self, window_id, alpha_255):
         if not self.cgs_api.available():
@@ -183,6 +207,23 @@ class OpacityController:
                 return int(window_id)
         return None
 
+    def _window_ids_for_pid(self, pid):
+        options = kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements
+        window_list = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
+        window_ids = []
+        for info in window_list:
+            if info.get("kCGWindowOwnerPID") != pid:
+                continue
+            if info.get("kCGWindowLayer") != 0:
+                continue
+            window_id = info.get("kCGWindowNumber")
+            if window_id is None:
+                continue
+            window_id_int = int(window_id)
+            if window_id_int not in window_ids:
+                window_ids.append(window_id_int)
+        return window_ids
+
 
 _controller = None
 _event_tap = None
@@ -206,9 +247,9 @@ def _event_callback(proxy, event_type, event, refcon):
     if DEBUG:
         print("[debug] Hotkey matched")
     if keycode == KEY_UP:
-        _controller.adjust_frontmost(ALPHA_STEP)
+        _apply_delta(ALPHA_STEP)
     elif keycode == KEY_DOWN:
-        _controller.adjust_frontmost(-ALPHA_STEP)
+        _apply_delta(-ALPHA_STEP)
     return event
 
 
@@ -231,6 +272,11 @@ def _create_event_tap():
     CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes)
     CGEventTapEnable(tap, True)
     _event_tap = tap
+
+
+def _apply_delta(delta):
+    global _controller
+    _controller.adjust_frontmost(delta)
 
 
 def _create_self_test_window():

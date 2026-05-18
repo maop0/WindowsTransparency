@@ -65,4 +65,3 @@ python3 macOS_api.py
 - Requires Accessibility permissions to read the focused window id.
 - Opacity range is 0-255 (0 is fully transparent if the API allows it).
 - Set `OPACITY_DEBUG=1` to print debug logs.
-
