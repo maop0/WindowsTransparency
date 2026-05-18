@@ -51,6 +51,7 @@ from AppKit import (
     NSScreen,
     NSTimer,
     NSObject,
+    NSView,
 )
 
 from CoreFoundation import (
@@ -68,6 +69,7 @@ ALPHA_STEP = 15
 ALPHA_MIN = 0
 ALPHA_MAX = 255
 REFRESH_INTERVAL = 1.0 / 60.0
+CORNER_RADIUS = 12.0
 DEBUG = os.getenv("OPACITY_DEBUG", "0") == "1"
 
 
@@ -75,6 +77,7 @@ class OpacityController:
     def __init__(self):
         self.alpha_by_pid = {}
         self.overlay_window = None
+        self.overlay_view = None
 
     def adjust_frontmost(self, delta):
         pid = self._frontmost_pid()
@@ -126,16 +129,24 @@ class OpacityController:
             window.setHasShadow_(False)
             window.setIgnoresMouseEvents_(True)
             window.setLevel_(NSStatusWindowLevel)
+            window.setBackgroundColor_(NSColor.clearColor())
             behavior = (
                 NSWindowCollectionBehaviorCanJoinAllSpaces
                 | NSWindowCollectionBehaviorFullScreenAuxiliary
             )
             window.setCollectionBehavior_(behavior)
+            view = NSView.alloc().initWithFrame_(rect)
+            view.setWantsLayer_(True)
+            view.layer().setCornerRadius_(CORNER_RADIUS)
+            view.layer().setMasksToBounds_(True)
+            window.setContentView_(view)
             self.overlay_window = window
+            self.overlay_view = view
         self.overlay_window.setFrame_display_(((x, y), (w, h)), True)
         alpha_float = float(alpha_255) / 255.0
         color = NSColor.whiteColor().colorWithAlphaComponent_(alpha_float)
-        self.overlay_window.setBackgroundColor_(color)
+        if self.overlay_view:
+            self.overlay_view.layer().setBackgroundColor_(color.CGColor())
         self.overlay_window.orderFrontRegardless()
 
     def _hide_overlay(self):
