@@ -50,7 +50,7 @@ python3 macOS_overlay.py
 - Works on the currently focused window
 
 ### Requirements
-- macOS 12+
+- macOS 10.14-
 - Python 3.8+
 - `pyobjc` installed
 - Accessibility + Input Monitoring permissions enabled for Terminal/IDE
