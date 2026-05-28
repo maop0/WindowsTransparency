@@ -1,0 +1,78 @@
+
+This file lists modules PyInstaller was not able to find. This does not
+necessarily mean these modules are required for running your program. Both
+Python's standard library and 3rd-party Python packages often conditionally
+import optional modules, some of which may be available only on certain
+platforms.
+
+Types of import:
+* top-level: imported at the top-level - look at these first
+* conditional: imported within an if-statement
+* delayed: imported within a function
+* optional: imported within a try-except-statement
+
+IMPORTANT: Do NOT post this list to the issue-tracker. Use it as a basis for
+            tracking down the missing module yourself. Thanks!
+
+missing module named 'collections.abc' - imported by _colorize (top-level), typing (top-level), traceback (top-level), logging (top-level), selectors (top-level), http.client (top-level), importlib.resources.readers (top-level), inspect (top-level), tracemalloc (top-level), PyObjCTools.KeyValueCoding (top-level), objc._convenience_nsdictionary (top-level), objc._convenience_mapping (top-level), objc._convenience_nsset (top-level), objc._convenience_nsarray (top-level), objc._bridges (top-level), objc._properties (top-level), xml.etree.ElementTree (top-level), objc._pycoder (top-level)
+missing module named winreg - imported by importlib._bootstrap_external (conditional), mimetypes (optional), urllib.request (delayed, conditional, optional)
+missing module named _winapi - imported by shutil (conditional), ntpath (optional), pathlib._os (optional), mimetypes (optional), subprocess (conditional)
+missing module named nt - imported by _colorize (delayed, conditional, optional), shutil (conditional), importlib._bootstrap_external (conditional), ntpath (optional), os (delayed, conditional, optional), ctypes (delayed, conditional)
+missing module named _frozen_importlib_external - imported by importlib._bootstrap (delayed), importlib (optional), importlib.abc (optional)
+excluded module named _frozen_importlib - imported by importlib (optional), importlib.abc (optional)
+missing module named CoreFoundation.kCFRunLoopCommonModes - imported by CoreFoundation (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named CoreFoundation.CFRunLoopRun - imported by CoreFoundation (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named CoreFoundation.CFRunLoopGetCurrent - imported by CoreFoundation (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named CoreFoundation.CFRunLoopAddSource - imported by CoreFoundation (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named CoreFoundation.CFMachPortCreateRunLoopSource - imported by CoreFoundation (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSView - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSObject - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSTimer - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSScreen - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSColor - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSWindowCollectionBehaviorFullScreenAuxiliary - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSWindowCollectionBehaviorCanJoinAllSpaces - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSStatusWindowLevel - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSBackingStoreBuffered - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSWindowStyleMaskBorderless - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSWindow - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSApp - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSApplicationActivationPolicyAccessory - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSApplication - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named AppKit.NSWorkspace - imported by AppKit (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.kAXValueCGSizeType - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.kAXValueCGPointType - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.kAXSizeAttribute - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.kAXPositionAttribute - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.kAXFocusedWindowAttribute - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.AXValueGetValue - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.AXValueGetType - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.AXUIElementCopyAttributeValue - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.AXUIElementCreateApplication - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named ApplicationServices.AXIsProcessTrusted - imported by ApplicationServices (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGSize - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGPoint - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGNullWindowID - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGWindowListExcludeDesktopElements - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGWindowListOptionOnScreenOnly - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGWindowListCopyWindowInfo - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGEventTapOptionDefault - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGSessionEventTap - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGKeyboardEventKeycode - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGHeadInsertEventTap - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGEventKeyDown - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGEventFlagMaskAlternate - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGEventFlagMaskControl - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.kCGEventFlagMaskCommand - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGEventTapEnable - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGEventTapCreate - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGEventMaskBit - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGEventGetIntegerValueField - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CGEventGetFlags - imported by Quartz (top-level), /Users/pinxian/PycharmProjects/WindowsTransparency/macOS_overlay.py (top-level)
+missing module named Quartz.CoreGraphics.CGPathElement - imported by Quartz.CoreGraphics (delayed)
+missing module named objc.nosuchclass_error - imported by objc (top-level), objc._lazyimport (top-level)
+missing module named objc.loadBundle - imported by objc (top-level), objc._lazyimport (top-level)
+missing module named objc.getClassList - imported by objc (top-level), objc._lazyimport (top-level)
+missing module named objc.NULL - imported by objc (top-level), objc._properties (top-level)
+missing module named objc._C_BOOL - imported by objc (top-level), objc._properties (top-level)
+missing module named msvcrt - imported by subprocess (optional)
